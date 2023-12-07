@@ -8,6 +8,8 @@ import { OAuth2Client } from "google-auth-library";
 const ObjectId = mongoose.Types.ObjectId;
 export const adminLogin = async (req, res) => {
   try {
+    //email : Vinayanac7777@gmail.com
+    //password : Vinayanac
     const { email, password } = req.query.login;
     const user = await adminModel.findOne({ email });
     if (user) {
