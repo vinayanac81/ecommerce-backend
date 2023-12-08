@@ -50,6 +50,25 @@ export const userSignup = async (req, res) => {
   try {
     const { signupData } = req.query;
     let { first_name, last_name, email, password } = signupData;
+    // program to generate random strings
+
+    // declare all characters
+
+    function generateString(length) {
+      const characters =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let result = "";
+      const charactersLength = characters.length;
+      for (let i = 0; i < length; i++) {
+        result += characters.charAt(
+          Math.floor(Math.random() * charactersLength)
+        );
+      }
+
+      return result;
+    }
+    let referral = generateString(16);
+    // console.log(referral);
     console.log(first_name, last_name, email, password);
     password = await bcrypt.hash(password, 12);
     await userModel.create({
@@ -57,6 +76,9 @@ export const userSignup = async (req, res) => {
       last_name,
       email,
       password,
+      wallet: 0,
+      referral_code: referral,
+      block: false,
     });
     res.status(201).json({ success: true, message: "Account Created" });
   } catch (error) {

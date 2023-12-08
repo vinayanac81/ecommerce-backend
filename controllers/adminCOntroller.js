@@ -4,7 +4,6 @@ import orderModel from "../model/orderModel.js";
 import productModel from "../model/productModel.js";
 import mongoose from "mongoose";
 import userModel from "../model/userModel.js";
-import { order } from "./userCOntroller.js";
 import coupenModel from "../model/coupenMode.js";
 const ObjectId = mongoose.Types.ObjectId;
 export const addProduct = async (req, res) => {

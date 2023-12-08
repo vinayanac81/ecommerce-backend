@@ -69,6 +69,6 @@ router.post("/update-password", userAuth, updatePassword);
 router.post("/update-address", userAuth, updateAddress);
 router.post("/delete-address", userAuth, deleteAddress);
 router.get("/get-referral-data", userAuth, getReferralData);
-router.get("/get-single-product-data", userAuth, getSingleProductData);
+router.get("/get-single-product-data",  getSingleProductData);
 router.get("/get-order-details",userAuth,getOrderDetails)
 export default router;

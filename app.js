@@ -17,8 +17,8 @@ app.use(express.urlencoded({ extended: false }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, 'public')));
-// app.use(cors({origin:"http://localhost:5173"}));
-app.use(cors({origin:"https://ecommerce-frong.onrender.com"}));
+app.use(cors({origin:"http://localhost:5173"}));
+// app.use(cors({origin:"https://ecommerce-frong.onrender.com"}));
 app.use("/", UserRoute);
 app.use("/auth", authRoute);
 app.use("/admin",adminRoute)
