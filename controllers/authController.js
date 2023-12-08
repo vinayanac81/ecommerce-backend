@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import adminModel from "../model/adminModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import twilio from "twilio";
 import userModel from "../model/userModel.js";
 import cartModel from "../model/cartModel.js";
 import { OAuth2Client } from "google-auth-library";
@@ -46,41 +47,110 @@ export const adminLogin = async (req, res) => {
     console.log(error);
   }
 };
+let signupInformation = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  mobile: "",
+  password: "",
+  referral_code: "",
+};
 export const userSignup = async (req, res) => {
   try {
+    const TwilioAuth = `${process.env.TWILIO_AUTH_TOKEN}`;
+    const TwilioSid = `${process.env.TWILIO_ACCOUNT_SID}`;
+    const serviceSid = `${process.env.TWILIO_SERVICE_SID}`;
+    const client = twilio(TwilioSid, TwilioAuth);
     const { signupData } = req.query;
-    let { first_name, last_name, email, password } = signupData;
-    // program to generate random strings
-
-    // declare all characters
-
-    function generateString(length) {
-      const characters =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-      let result = "";
-      const charactersLength = characters.length;
-      for (let i = 0; i < length; i++) {
-        result += characters.charAt(
-          Math.floor(Math.random() * charactersLength)
-        );
-      }
-
-      return result;
+    let { first_name, last_name, email, password, mobile } = signupData;
+    email = email.toLowerCase();
+    const ifEmail = await userModel.findOne({ email: email });
+    if (ifEmail) {
+      return res.json({
+        success: false,
+        emailExist: true,
+        message: "Email id already registered",
+      });
     }
-    let referral = generateString(16);
-    // console.log(referral);
-    console.log(first_name, last_name, email, password);
-    password = await bcrypt.hash(password, 12);
-    await userModel.create({
-      first_name,
-      last_name,
-      email,
-      password,
-      wallet: 0,
-      referral_code: referral,
-      block: false,
-    });
-    res.status(201).json({ success: true, message: "Account Created" });
+    // const ifNumber = await userModel.findOne({ mobile });
+
+    // if (ifNumber) {
+    //   return res.json({
+    //     success: false,
+    //     message: "Mobile Number Already Registered",
+    //   });
+    // }
+    signupInformation.mobile = parseInt(mobile);
+    signupInformation.first_name = first_name;
+    signupInformation.last_name = last_name;
+    signupInformation.email = email;
+    signupInformation.password = password;
+    signupInformation.mobile = mobile;
+    client.verify.v2
+      .services(serviceSid)
+      .verifications.create({
+        to: `+91${mobile}`,
+        channel: "sms",
+      })
+      .then((resp) => {
+        console.log(resp.sid);
+        res.json({ success: true, message: "OTP Sented Successfully" });
+      });
+  } catch (error) {
+    console.log(error);
+  }
+};
+export const verifyOtp = async (req, res) => {
+  try {
+    const TwilioAuth = `${process.env.TWILIO_AUTH_TOKEN}`;
+    const TwilioSid = `${process.env.TWILIO_ACCOUNT_SID}`;
+    const serviceSid = `${process.env.TWILIO_SERVICE_SID}`;
+    const client = twilio(TwilioSid, TwilioAuth);
+    const { otp } = req.body;
+    console.log(otp);
+    client.verify.v2
+      .services(serviceSid)
+      .verificationChecks.create({
+        to: `+91${signupInformation.mobile}`,
+        code: otp,
+      })
+      .then(async (resp) => {
+        console.log(resp.status);
+        console.log(resp.valid);
+        if (resp.valid === true) {
+          signupInformation.password = await bcrypt.hash(signupInformation.password, 12);
+          function generateString(length) {
+            const characters =
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            let result = "";
+            const charactersLength = characters.length;
+            for (let i = 0; i < length; i++) {
+              result += characters.charAt(
+                Math.floor(Math.random() * charactersLength)
+              );
+            }
+
+            return result;
+          }
+          let referral = generateString(16);
+          await userModel.create({
+            first_name: signupInformation.first_name,
+            last_name: signupInformation.last_name,
+            email: signupInformation.email,
+            mobile: signupInformation.number,
+            password: signupInformation.password,
+            referral_code: referral,
+            referrals: [],
+            wallet: 0,
+            block: false,
+          });
+          console.log("SUCCESS");
+          res.json({ success: true, message: "Signup Successfull." });
+        }
+      })
+      .catch((err) => {
+        res.json({ message: "Something went wrong.", success: false, err });
+      });
   } catch (error) {
     console.log(error);
   }
