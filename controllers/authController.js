@@ -143,7 +143,7 @@ export const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
     client
-      .verifyIdToken({ idToken, audience: `${process.env.CLIENT_ID}` })
+      .verifyIdToken({ idToken, requiredAudience: `${process.env.CLIENT_ID}` })
       .then((response) => {
         const {
           email_verified,
