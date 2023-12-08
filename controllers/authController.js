@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import adminModel from "../model/adminModel.js";
 import bcrypt from "bcrypt";
+import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
+import axios from "axios";
 import twilio from "twilio";
 import userModel from "../model/userModel.js";
 import cartModel from "../model/cartModel.js";
@@ -55,29 +57,18 @@ let signupInformation = {
   password: "",
   referral_code: "",
 };
+let verifyEmailOtp;
 export const userSignup = async (req, res) => {
   try {
-    const TwilioAuth = `${process.env.TWILIO_AUTH_TOKEN}`;
-    const TwilioSid = `${process.env.TWILIO_ACCOUNT_SID}`;
-    const serviceSid = `${process.env.TWILIO_SERVICE_SID}`;
-    const client = twilio(TwilioSid, TwilioAuth);
     const { signupData } = req.query;
     let { first_name, last_name, email, password, mobile } = signupData;
     email = email.toLowerCase();
     const ifEmail = await userModel.findOne({ email: email });
-    if (ifEmail) {
-      return res.json({
-        success: false,
-        emailExist: true,
-        message: "Email id already registered",
-      });
-    }
-    // const ifNumber = await userModel.findOne({ mobile });
-
-    // if (ifNumber) {
+    // if (ifEmail) {
     //   return res.json({
     //     success: false,
-    //     message: "Mobile Number Already Registered",
+    //     emailExist: true,
+    //     message: "Email id already registered",
     //   });
     // }
     signupInformation.mobile = parseInt(mobile);
@@ -86,71 +77,91 @@ export const userSignup = async (req, res) => {
     signupInformation.email = email;
     signupInformation.password = password;
     signupInformation.mobile = mobile;
-    client.verify.v2
-      .services(serviceSid)
-      .verifications.create({
-        to: `+91${mobile}`,
-        channel: "sms",
-      })
-      .then((resp) => {
-        console.log(resp.sid);
-        res.json({ success: true, message: "OTP Sented Successfully" });
+    function generateOTP(length) {
+      const characters = "0123456789";
+      let result = "";
+      const charactersLength = characters.length;
+      for (let i = 0; i < length; i++) {
+        result += characters.charAt(
+          Math.floor(Math.random() * charactersLength)
+        );
+      }
+
+      return result;
+    }
+    let otp = generateOTP(6);
+    console.log(parseInt(otp));
+    verifyEmailOtp = otp;
+    const sendEmail = async (email) => {
+      const transporter = nodemailer.createTransport({
+        service: "Gmail",
+        port: 465,
+        secure: true,
+        auth: {
+          // TODO: replace `user` and `pass` values from <https://forwardemail.net>
+          user: "vinudev2689@gmail.com",
+          pass: "gqpe ihzw bxvv srhf",
+        },
       });
+      // async..await is not allowed in global scope, must use a wrapper
+      async function main() {
+        // send mail with defined transport object
+        console.log(email);
+        const info = await transporter.sendMail({
+          from: "PHONE HOUSE", // sender address
+          to: email, // list of receivers
+          subject: "Email verification", // Subject line
+          text: "Hello world?", // plain text body
+          html: `<b>ENTER OTP ${otp}</b>`, // html body
+        });
+      }
+      // console.log("Message sent: %s", info.messageId);
+      main().catch(console.error);
+    };
+    await sendEmail(email);
+    res.json({ success: true, message: "OTP sented successfully" });
   } catch (error) {
     console.log(error);
   }
 };
 export const verifyOtp = async (req, res) => {
   try {
-    const TwilioAuth = `${process.env.TWILIO_AUTH_TOKEN}`;
-    const TwilioSid = `${process.env.TWILIO_ACCOUNT_SID}`;
-    const serviceSid = `${process.env.TWILIO_SERVICE_SID}`;
-    const client = twilio(TwilioSid, TwilioAuth);
     const { otp } = req.body;
     console.log(otp);
-    client.verify.v2
-      .services(serviceSid)
-      .verificationChecks.create({
-        to: `+91${signupInformation.mobile}`,
-        code: otp,
-      })
-      .then(async (resp) => {
-        console.log(resp.status);
-        console.log(resp.valid);
-        if (resp.valid === true) {
-          signupInformation.password = await bcrypt.hash(signupInformation.password, 12);
-          function generateString(length) {
-            const characters =
-              "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            let result = "";
-            const charactersLength = characters.length;
-            for (let i = 0; i < length; i++) {
-              result += characters.charAt(
-                Math.floor(Math.random() * charactersLength)
-              );
-            }
-
-            return result;
-          }
-          let referral = generateString(16);
-          await userModel.create({
-            first_name: signupInformation.first_name,
-            last_name: signupInformation.last_name,
-            email: signupInformation.email,
-            mobile: signupInformation.number,
-            password: signupInformation.password,
-            referral_code: referral,
-            referrals: [],
-            wallet: 0,
-            block: false,
-          });
-          console.log("SUCCESS");
-          res.json({ success: true, message: "Signup Successfull." });
+    if (otp === verifyEmailOtp) {
+      signupInformation.password = await bcrypt.hash(
+        signupInformation.password,
+        12
+      );
+      function generateString(length) {
+        const characters =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let result = "";
+        const charactersLength = characters.length;
+        for (let i = 0; i < length; i++) {
+          result += characters.charAt(
+            Math.floor(Math.random() * charactersLength)
+          );
         }
-      })
-      .catch((err) => {
-        res.json({ message: "Something went wrong.", success: false, err });
+
+        return result;
+      }
+      let referral = generateString(16);
+      await userModel.create({
+        first_name: signupInformation.first_name,
+        last_name: signupInformation.last_name,
+        email: signupInformation.email,
+        mobile: signupInformation.number,
+        password: signupInformation.password,
+        referral_code: referral,
+        referrals: [],
+        wallet: 0,
+        block: false,
       });
+      res.json({ success: true, message: "Signup Successfull." });
+    } else {
+      console.log("FAILED");
+    }
   } catch (error) {
     console.log(error);
   }
